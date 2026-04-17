@@ -1,0 +1,165 @@
+<!-- Design: Apple Dark — True black, frosted glass, vibrant accents, #0A84FF -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareerCoach — Apple Dark</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #000; color: #fff; line-height: 1.5; }
+
+  /* Nav — frosted glass */
+  nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 48px; background: rgba(28,28,30,0.72); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .nav-brand { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a { text-decoration: none; color: rgba(235,235,245,0.6); font-size: 14px; font-weight: 500; padding: 14px 0; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .nav-links a.active { color: #fff; border-bottom-color: #0A84FF; }
+  .nav-links a:hover { color: rgba(235,235,245,0.99); }
+  .nav-user { font-size: 14px; color: rgba(235,235,245,0.6); }
+
+  /* Layout */
+  .container { max-width: 1080px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Greeting */
+  .greeting h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.5px; }
+  .greeting p { color: rgba(235,235,245,0.6); font-size: 15px; margin-top: 4px; }
+
+  /* Stat Cards */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 32px; }
+  .stat-card { background: #1c1c1e; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; }
+  .stat-card .label { font-size: 13px; color: rgba(235,235,245,0.6); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 40px; font-weight: 600; margin-top: 8px; letter-spacing: -1px; }
+  .stat-card .sub { font-size: 13px; color: rgba(235,235,245,0.6); margin-top: 4px; }
+  .stat-card:nth-child(1) .value { color: #0A84FF; }
+  .stat-card:nth-child(4) .value { color: #30D158; }
+
+  /* Section */
+  .section { margin-top: 40px; }
+  .section-title { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; margin-bottom: 20px; }
+
+  /* Pipeline */
+  .pipeline-card { background: #1c1c1e; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 32px; }
+  .pipeline-bar { display: flex; gap: 0; margin-top: 16px; }
+  .pipeline-stage { flex: 1; text-align: center; }
+  .pipeline-stage .stage-track { height: 6px; background: #2c2c2e; border-radius: 3px; margin: 0 4px; overflow: hidden; }
+  .pipeline-stage.filled .stage-track { background: #0A84FF; box-shadow: 0 0 12px rgba(10,132,255,0.4); }
+  .pipeline-stage .stage-label { font-size: 12px; color: rgba(235,235,245,0.6); margin-top: 10px; font-weight: 500; }
+  .pipeline-stage .stage-count { font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .pipeline-stage.filled .stage-label { color: #0A84FF; }
+
+  /* Recent Applications */
+  .apps-card { background: #1c1c1e; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+  .app-header { display: flex; align-items: center; padding: 12px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .app-header span { font-size: 12px; color: rgba(235,235,245,0.6); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .app-header .col-company { width: 200px; }
+  .app-header .col-role { flex: 1; }
+  .app-header .col-date { width: 120px; text-align: right; }
+  .app-header .col-status { width: 120px; text-align: right; }
+
+  .app-row { display: flex; align-items: center; padding: 16px 24px; }
+  .app-row + .app-row { border-top: 1px solid rgba(255,255,255,0.04); }
+  .app-company { font-weight: 600; font-size: 15px; width: 200px; }
+  .app-role { flex: 1; font-size: 14px; color: rgba(235,235,245,0.6); }
+  .app-date { font-size: 13px; color: rgba(235,235,245,0.6); width: 120px; text-align: right; }
+  .app-status { width: 120px; text-align: right; }
+
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-applied { background: rgba(10,132,255,0.2); color: #0A84FF; }
+  .badge-interview { background: rgba(255,159,10,0.2); color: #FF9F0A; }
+  .badge-offer { background: rgba(48,209,88,0.2); color: #30D158; }
+  .badge-rejected { background: rgba(255,69,58,0.2); color: #FF453A; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">CareerCoach</div>
+  <div class="nav-links">
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Profile</a>
+    <a href="#">Applications</a>
+    <a href="#">Generator</a>
+    <a href="#">Settings</a>
+  </div>
+  <div class="nav-user">Samuel</div>
+</nav>
+
+<div class="container">
+  <div class="greeting">
+    <h1>Good morning, Samuel</h1>
+    <p>Here's your job search at a glance.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Roles in Profile</div>
+      <div class="value">5</div>
+      <div class="sub">Target roles saved</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Applications Tracked</div>
+      <div class="value">1</div>
+      <div class="sub">Total submitted</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Active Interviews</div>
+      <div class="value">0</div>
+      <div class="sub">Scheduled</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Offers</div>
+      <div class="value">0</div>
+      <div class="sub">Received</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Application Pipeline</div>
+    <div class="pipeline-card">
+      <div class="pipeline-bar">
+        <div class="pipeline-stage filled">
+          <div class="stage-track"></div>
+          <div class="stage-label">Applied</div>
+          <div class="stage-count">1</div>
+        </div>
+        <div class="pipeline-stage">
+          <div class="stage-track"></div>
+          <div class="stage-label">Screening</div>
+          <div class="stage-count">0</div>
+        </div>
+        <div class="pipeline-stage">
+          <div class="stage-track"></div>
+          <div class="stage-label">Interview</div>
+          <div class="stage-count">0</div>
+        </div>
+        <div class="pipeline-stage">
+          <div class="stage-track"></div>
+          <div class="stage-label">Offer</div>
+          <div class="stage-count">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Recent Applications</div>
+    <div class="apps-card">
+      <div class="app-header">
+        <span class="col-company">Company</span>
+        <span class="col-role">Role</span>
+        <span class="col-date">Date</span>
+        <span class="col-status">Status</span>
+      </div>
+      <div class="app-row">
+        <div class="app-company">Spark Car Wash</div>
+        <div class="app-role">Strategic Finance Analyst</div>
+        <div class="app-date">Mar 20, 2026</div>
+        <div class="app-status"><span class="badge badge-applied">Applied</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

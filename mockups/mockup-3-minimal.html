@@ -1,0 +1,164 @@
+<!-- Design: Ultra Minimal — Grayscale + indigo #5856D6, hairline separators, editorial feel -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareerCoach — Ultra Minimal</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; font-weight: 300; }
+
+  /* Nav */
+  nav { display: flex; align-items: baseline; justify-content: space-between; padding: 24px 48px; }
+  .nav-brand { font-size: 15px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: #1a1a1a; }
+  .nav-links { display: flex; gap: 36px; }
+  .nav-links a { text-decoration: none; color: #999; font-size: 13px; font-weight: 400; letter-spacing: 0.3px; padding-bottom: 2px; border-bottom: 1.5px solid transparent; transition: all 0.2s; }
+  .nav-links a.active { color: #1a1a1a; border-bottom-color: #5856D6; }
+  .nav-links a:hover { color: #666; }
+  .nav-user { font-size: 13px; color: #999; font-weight: 400; }
+  .nav-sep { width: 100%; height: 1px; background: #e8e8e8; }
+
+  /* Layout */
+  .container { max-width: 900px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* Greeting */
+  .greeting h1 { font-size: 28px; font-weight: 300; letter-spacing: -0.3px; color: #1a1a1a; }
+  .greeting p { color: #999; font-size: 14px; margin-top: 4px; font-weight: 300; }
+
+  /* Stats — inline large numbers, no cards */
+  .stats { display: flex; gap: 0; margin-top: 48px; padding-bottom: 48px; border-bottom: 1px solid #e8e8e8; }
+  .stat { flex: 1; text-align: center; position: relative; }
+  .stat + .stat::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: #e8e8e8; }
+  .stat .value { font-size: 48px; font-weight: 300; letter-spacing: -2px; color: #1a1a1a; }
+  .stat:first-child .value { color: #5856D6; }
+  .stat .label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px; font-weight: 400; margin-top: 4px; }
+
+  /* Section */
+  .section { margin-top: 48px; }
+  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; font-weight: 500; margin-bottom: 24px; }
+
+  /* Pipeline — thin line with dots */
+  .pipeline { display: flex; align-items: center; position: relative; padding: 24px 0 48px; border-bottom: 1px solid #e8e8e8; }
+  .pipeline-line { position: absolute; top: 32px; left: 40px; right: 40px; height: 1px; background: #e0e0e0; }
+  .pipeline-fill { position: absolute; top: 32px; left: 40px; width: calc(25% - 20px); height: 1px; background: #5856D6; }
+  .pipeline-stage { flex: 1; text-align: center; position: relative; z-index: 1; }
+  .pipeline-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0e0e0; margin: 0 auto; border: 2px solid #fafafa; }
+  .pipeline-stage.filled .pipeline-dot { background: #5856D6; box-shadow: 0 0 0 3px rgba(88,86,214,0.15); }
+  .pipeline-stage .stage-label { font-size: 11px; color: #999; margin-top: 12px; letter-spacing: 0.3px; font-weight: 400; }
+  .pipeline-stage .stage-count { font-size: 16px; font-weight: 400; margin-top: 2px; color: #ccc; }
+  .pipeline-stage.filled .stage-count { color: #5856D6; }
+  .pipeline-stage.filled .stage-label { color: #666; }
+
+  /* Recent Applications — no card, just rows */
+  .app-list { margin-top: 0; }
+  .app-header { display: flex; padding: 0 0 12px; }
+  .app-header span { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #bbb; font-weight: 500; }
+  .app-header .col-co { width: 200px; }
+  .app-header .col-role { flex: 1; }
+  .app-header .col-date { width: 120px; text-align: right; }
+  .app-header .col-status { width: 100px; text-align: right; }
+  .app-sep { height: 1px; background: #e8e8e8; }
+
+  .app-row { display: flex; align-items: center; padding: 16px 0; border-bottom: 1px solid #f0f0f0; }
+  .app-row .co { width: 200px; font-weight: 400; font-size: 14px; }
+  .app-row .role { flex: 1; font-size: 13px; color: #888; font-weight: 300; }
+  .app-row .date { width: 120px; text-align: right; font-size: 12px; color: #bbb; font-weight: 300; }
+  .app-row .status { width: 100px; text-align: right; }
+
+  .badge { font-size: 11px; font-weight: 500; letter-spacing: 0.3px; color: #5856D6; }
+
+  /* Empty cta */
+  .cta-link { display: inline-block; margin-top: 32px; font-size: 13px; color: #5856D6; text-decoration: none; font-weight: 400; border-bottom: 1px solid rgba(88,86,214,0.3); padding-bottom: 1px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">CareerCoach</div>
+  <div class="nav-links">
+    <a href="#" class="active">Dashboard</a>
+    <a href="#">Profile</a>
+    <a href="#">Applications</a>
+    <a href="#">Generator</a>
+    <a href="#">Settings</a>
+  </div>
+  <div class="nav-user">Samuel</div>
+</nav>
+<div class="nav-sep"></div>
+
+<div class="container">
+  <div class="greeting">
+    <h1>Good morning, Samuel</h1>
+    <p>Your job search overview</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="value">5</div>
+      <div class="label">Roles in Profile</div>
+    </div>
+    <div class="stat">
+      <div class="value">1</div>
+      <div class="label">Applications</div>
+    </div>
+    <div class="stat">
+      <div class="value">0</div>
+      <div class="label">Interviews</div>
+    </div>
+    <div class="stat">
+      <div class="value">0</div>
+      <div class="label">Offers</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Pipeline</div>
+    <div class="pipeline">
+      <div class="pipeline-line"></div>
+      <div class="pipeline-fill"></div>
+      <div class="pipeline-stage filled">
+        <div class="pipeline-dot"></div>
+        <div class="stage-label">Applied</div>
+        <div class="stage-count">1</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-dot"></div>
+        <div class="stage-label">Screening</div>
+        <div class="stage-count">0</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-dot"></div>
+        <div class="stage-label">Interview</div>
+        <div class="stage-count">0</div>
+      </div>
+      <div class="pipeline-stage">
+        <div class="pipeline-dot"></div>
+        <div class="stage-label">Offer</div>
+        <div class="stage-count">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Recent Applications</div>
+    <div class="app-list">
+      <div class="app-header">
+        <span class="col-co">Company</span>
+        <span class="col-role">Role</span>
+        <span class="col-date">Date</span>
+        <span class="col-status">Status</span>
+      </div>
+      <div class="app-sep"></div>
+      <div class="app-row">
+        <div class="co">Spark Car Wash</div>
+        <div class="role">Strategic Finance Analyst</div>
+        <div class="date">Mar 20, 2026</div>
+        <div class="status"><span class="badge">Applied</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
