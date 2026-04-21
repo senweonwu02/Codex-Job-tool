@@ -64,8 +64,11 @@ def _active_profile():
 
 # ── CLAUDE API HELPER ──────────────────────────────────────────────────────────
 
-def _call_claude(prompt: str, api_key: str, max_tokens: int = 2048) -> str:
-    """Call Claude API directly. Returns the response text."""
+def _call_claude(prompt: str, max_tokens: int = 2048) -> str:
+    """Call Claude API directly using embedded API key. Returns the response text."""
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("ANTHROPIC_API_KEY environment variable not set. Cannot make API calls.")
+
     try:
         from anthropic import Anthropic
     except ImportError:
@@ -74,7 +77,7 @@ def _call_claude(prompt: str, api_key: str, max_tokens: int = 2048) -> str:
             "Open a terminal in the Codex folder and run: pip install anthropic"
         )
     model = db.get_setting("claude_model", "claude-sonnet-4-6") or "claude-sonnet-4-6"
-    client = Anthropic(api_key=api_key)
+    client = Anthropic(api_key=ANTHROPIC_API_KEY)
     msg = client.messages.create(
         model=model,
         max_tokens=max_tokens,
@@ -83,8 +86,11 @@ def _call_claude(prompt: str, api_key: str, max_tokens: int = 2048) -> str:
     return msg.content[0].text
 
 
-def _call_claude_messages(system: str, messages: list, api_key: str, max_tokens: int = 800) -> str:
-    """Call Claude API with multi-turn conversation history. Returns response text."""
+def _call_claude_messages(system: str, messages: list, max_tokens: int = 800) -> str:
+    """Call Claude API with multi-turn conversation history using embedded API key. Returns response text."""
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("ANTHROPIC_API_KEY environment variable not set. Cannot make API calls.")
+
     try:
         from anthropic import Anthropic
     except ImportError:
@@ -93,7 +99,7 @@ def _call_claude_messages(system: str, messages: list, api_key: str, max_tokens:
             "Open a terminal in the Codex folder and run: pip install anthropic"
         )
     model = db.get_setting("claude_model", "claude-sonnet-4-6") or "claude-sonnet-4-6"
-    client = Anthropic(api_key=api_key)
+    client = Anthropic(api_key=ANTHROPIC_API_KEY)
     msg = client.messages.create(
         model=model,
         max_tokens=max_tokens,
@@ -529,6 +535,8 @@ def _try_job_board_api(url):
     return None, None
 
 
+@login_required
+@check_api_quota
 @app.route("/api/fetch-url", methods=["POST"])
 def api_fetch_url():
     import ssl
@@ -597,8 +605,7 @@ def api_fetch_url():
     result = {"text": text, "source_url": url, "extracted": None}
 
     # ── Use Claude to extract structured job data if API key is available ──
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         extract_prompt = (
             "You are a job listing parser. Extract structured data from this job posting text.\n"
             "Return ONLY valid JSON with these fields (use empty string if not found):\n\n"
@@ -615,7 +622,7 @@ def api_fetch_url():
             "PAGE TEXT:\n" + text
         )
         try:
-            raw_json = _call_claude(extract_prompt, api_key, max_tokens=4000)
+            raw_json = _call_claude(extract_prompt, max_tokens=4000)
             cleaned = raw_json.strip()
             if cleaned.startswith("```"):
                 cleaned = re.sub(r'^```\w*\n?', '', cleaned)
@@ -632,6 +639,8 @@ def api_fetch_url():
 
 # ── ROLE ANALYSIS ─────────────────────────────────────────────────────────────
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/analysis", methods=["POST"])
 def api_generate_analysis():
     data           = request.get_json()
@@ -662,10 +671,9 @@ def api_generate_analysis():
     prompt = gen.build_role_analysis_prompt(
         jd, experiences, projects, skills, candidate_name, career_summary
     )
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=1800)
+            text = _call_claude(prompt, max_tokens=1800)
             return jsonify({"prompt": prompt, "text": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
@@ -684,6 +692,8 @@ def api_parse_markdown():
     return jsonify({"prompt": prompt})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/ai/interview-start", methods=["POST"])
 def api_interview_start():
     data = request.get_json()
@@ -693,16 +703,17 @@ def api_interview_start():
         return jsonify({"error": "Please describe your experience first"}), 400
     prompt = gen.build_interview_round1_prompt(section_type, narrative)
     # Auto-fire if API key is available
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=1200)
+            text = _call_claude(prompt, max_tokens=1200)
             return jsonify({"prompt": prompt, "questions": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
     return jsonify({"prompt": prompt})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/ai/interview-extract", methods=["POST"])
 def api_interview_extract():
     data = request.get_json()
@@ -713,16 +724,17 @@ def api_interview_extract():
         return jsonify({"error": "Missing initial narrative"}), 400
     prompt = gen.build_interview_extraction_prompt(section_type, narrative, qa_pairs)
     # Auto-fire if API key is available
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=3000)
+            text = _call_claude(prompt, max_tokens=3000)
             return jsonify({"prompt": prompt, "json_text": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
     return jsonify({"prompt": prompt})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/ai/interview-chat", methods=["POST"])
 def api_interview_chat():
     """Handle one turn of the conversational AI interview."""
@@ -743,11 +755,9 @@ def api_interview_chat():
         messages = [{"role": m["role"], "content": m["content"]} for m in history]
         if user_message:
             messages.append({"role": "user", "content": user_message})
-
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude_messages(system, messages, api_key, max_tokens=600)
+            text = _call_claude_messages(system, messages, max_tokens=600)
             is_done = text.strip().startswith("✅ I think I have what I need")
             return jsonify({"assistant_message": text, "is_done": is_done})
         except Exception as e:
@@ -756,6 +766,8 @@ def api_interview_chat():
         return jsonify({"no_key": True, "fallback_system": system})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/ai/interview-finalize", methods=["POST"])
 def api_interview_finalize():
     """Extract structured JSON from the completed conversation."""
@@ -765,10 +777,9 @@ def api_interview_finalize():
     history        = data.get("history", [])
 
     prompt = gen.build_interview_finalize_prompt(section_type, existing_entry, history)
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=3000)
+            text = _call_claude(prompt, max_tokens=3000)
             return jsonify({"json_text": text, "prompt": prompt})
         except Exception as e:
             return jsonify({"error": str(e), "prompt": prompt})
@@ -872,6 +883,8 @@ def api_application_delete(id):
 
 # ── GENERATOR ─────────────────────────────────────────────────────────────────
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/bullets", methods=["POST"])
 def api_generate_bullets():
     data = request.get_json()
@@ -900,16 +913,17 @@ def api_generate_bullets():
             prompt += dp.build_template_prompt_addon(tmpl_meta, "resume")
         except Exception:
             pass
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=2500)
+            text = _call_claude(prompt, max_tokens=2500)
             return jsonify({"prompt": prompt, "text": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
     return jsonify({"prompt": prompt})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/recommend-profile", methods=["POST"])
 def api_recommend_profile():
     """Use Claude to recommend which profile items best fit the job description."""
@@ -917,8 +931,6 @@ def api_recommend_profile():
     jd = data.get("job_description", "").strip()
     if not jd:
         return jsonify({"error": "Job description is required"}), 400
-
-    api_key = db.get_setting("api_key", "")
     if not api_key:
         # No API key — return empty (frontend falls back to all selected)
         return jsonify({"experience_ids": [], "project_ids": [], "skill_ids": []})
@@ -955,7 +967,7 @@ def api_recommend_profile():
     )
 
     try:
-        raw = _call_claude(prompt, api_key, max_tokens=200)
+        raw = _call_claude(prompt, max_tokens=200)
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             cleaned = re.sub(r'^```\w*\n?', '', cleaned)
@@ -973,6 +985,8 @@ def api_recommend_profile():
         })
 
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/resume", methods=["POST"])
 def api_generate_resume():
     data = request.get_json()
@@ -1024,16 +1038,17 @@ def api_generate_resume():
             prompt += dp.build_template_prompt_addon(tmpl_meta, "resume")
         except Exception:
             pass
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=4000)
+            text = _call_claude(prompt, max_tokens=4000)
             return jsonify({"prompt": prompt, "text": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
     return jsonify({"prompt": prompt})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/cover-letter", methods=["POST"])
 def api_generate_cover_letter():
     data = request.get_json()
@@ -1069,10 +1084,9 @@ def api_generate_cover_letter():
             prompt += dp.build_template_prompt_addon(tmpl_meta, "cover_letter")
         except Exception:
             pass
-    api_key = db.get_setting("api_key", "")
-    if api_key:
+    if ANTHROPIC_API_KEY:
         try:
-            text = _call_claude(prompt, api_key, max_tokens=2000)
+            text = _call_claude(prompt, max_tokens=2000)
             return jsonify({"prompt": prompt, "text": text})
         except Exception as e:
             return jsonify({"prompt": prompt, "ai_error": str(e)})
@@ -1080,6 +1094,8 @@ def api_generate_cover_letter():
 
 # ── EXPAND ENTRY (inline AI enhancement) ─────────────────────────────────────
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/expand-entry", methods=["POST"])
 def api_expand_entry():
     data = request.get_json()
@@ -1089,8 +1105,6 @@ def api_expand_entry():
 
     if not entry_text:
         return jsonify({"error": "No entry text provided"}), 400
-
-    api_key = db.get_setting("api_key", "")
     if not api_key:
         return jsonify({"error": "API key required — configure in Settings"}), 400
 
@@ -1186,7 +1200,7 @@ ENTRY TO EXPAND:
 OUTPUT THE COMPLETE EXPANDED ENTRY:"""
 
     try:
-        text = _call_claude(prompt, api_key, max_tokens=800)
+        text = _call_claude(prompt, max_tokens=800)
         return jsonify({"expanded_text": text.strip()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1300,6 +1314,8 @@ def api_upload_template():
     return jsonify({"ok": True, "summary": summary})
 
 
+@login_required
+@check_api_quota
 @app.route("/api/generate/download-docx", methods=["POST"])
 def api_download_docx():
     """
@@ -1393,11 +1409,10 @@ def api_settings_save():
 @app.route("/api/test-connection", methods=["POST"])
 def api_test_connection():
     """Test that the stored Claude API key works."""
-    api_key = db.get_setting("api_key", "")
     if not api_key:
         return jsonify({"error": "No API key configured. Add one in Settings."}), 400
     try:
-        result = _call_claude("Reply with exactly: OK", api_key, max_tokens=10)
+        result = _call_claude("Reply with exactly: OK", max_tokens=10)
         return jsonify({"ok": True, "message": f"Connected! Model: {db.get_setting('claude_model','claude-sonnet-4-6')}"})
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500

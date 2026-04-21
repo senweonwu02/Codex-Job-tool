@@ -384,14 +384,66 @@
   /* CURRENT ROLE INDICATOR */
   .current-badge { background: rgba(52,211,153,0.1); color: #059669; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
 
+  /* AUTH MODAL STYLES */
+  #auth-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+  #auth-modal.hidden { display: none; }
+  .auth-box { background: var(--surface); border-radius: 12px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
+  .auth-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+  .auth-subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+  .auth-form { display: flex; flex-direction: column; gap: 12px; }
+  .auth-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text); outline: none; }
+  .auth-input:focus { border-color: var(--accent); }
+  .auth-button { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .auth-button:hover { opacity: 0.9; }
+  .auth-toggle { text-align: center; font-size: 13px; color: var(--text2); margin-top: 12px; }
+  .auth-toggle button { background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600; }
+  .auth-error { color: var(--red); font-size: 12px; }
+  .auth-loading { text-align: center; color: var(--text2); }
+  .usage-badge { background: rgba(88,86,214,0.1); color: var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
   @media (max-width: 820px) {
     .gen-layout { grid-template-columns: 1fr; height: auto; }
     .form-row, .form-row-3 { grid-template-columns: 1fr; }
     .dash-section { margin-top: 20px; }
+    .auth-box { padding: 24px; margin: 20px; }
   }
 </style>
 </head>
 <body>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal">
+  <div class="auth-box">
+    <h2 class="auth-title">Career Coach</h2>
+    <p class="auth-subtitle">Sign in to get started</p>
+    <div id="auth-error" class="auth-error" style="display:none;"></div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="auth-form">
+        <input type="email" id="login-email" class="auth-input" placeholder="Email address" autocomplete="email">
+        <input type="password" id="login-password" class="auth-input" placeholder="Password" autocomplete="current-password">
+        <button class="auth-button" onclick="handleLogin()">Sign In</button>
+      </div>
+      <div class="auth-toggle">
+        Don't have an account? <button onclick="switchToRegister()">Sign Up</button>
+      </div>
+    </div>
+
+    <!-- Register Form (hidden) -->
+    <div id="register-form" style="display:none;">
+      <div class="auth-form">
+        <input type="email" id="register-email" class="auth-input" placeholder="Email address" autocomplete="email">
+        <input type="password" id="register-password" class="auth-input" placeholder="Password (min 6 characters)" autocomplete="new-password">
+        <input type="password" id="register-confirm" class="auth-input" placeholder="Confirm password" autocomplete="new-password">
+        <button class="auth-button" onclick="handleRegister()">Create Account</button>
+      </div>
+      <div class="auth-toggle">
+        Already have an account? <button onclick="switchToLogin()">Sign In</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <nav class="navbar">
   <div class="logo">Codex</div>
@@ -4311,9 +4363,151 @@ async function deleteProfile(event, id) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// AUTHENTICATION
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function checkAuthentication() {
+  try {
+    const res = await fetch('/api/auth/verify');
+    const data = await res.json();
+    return data.authenticated;
+  } catch {
+    return false;
+  }
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorDiv = document.getElementById('auth-error');
+
+  if (!email || !password) {
+    errorDiv.textContent = 'Please enter email and password';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorDiv.textContent = data.error || 'Login failed';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    // Login successful, hide modal and load app
+    document.getElementById('auth-modal').classList.add('hidden');
+    updateNavbarWithUser(email);
+    init();
+  } catch (err) {
+    errorDiv.textContent = 'Network error';
+    errorDiv.style.display = 'block';
+  }
+}
+
+async function handleRegister() {
+  const email = document.getElementById('register-email').value.trim();
+  const password = document.getElementById('register-password').value;
+  const confirm = document.getElementById('register-confirm').value;
+  const errorDiv = document.getElementById('auth-error');
+
+  if (!email || !password) {
+    errorDiv.textContent = 'Please enter email and password';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  if (password.length < 6) {
+    errorDiv.textContent = 'Password must be at least 6 characters';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  if (password !== confirm) {
+    errorDiv.textContent = 'Passwords do not match';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorDiv.textContent = data.error || 'Registration failed';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    // Auto-login after registration
+    await handleLogin();
+  } catch (err) {
+    errorDiv.textContent = 'Network error';
+    errorDiv.style.display = 'block';
+  }
+}
+
+function switchToRegister() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function switchToLogin() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function updateNavbarWithUser(email) {
+  const badge = document.querySelector('.nav-profile-badge') || document.createElement('div');
+  badge.className = 'nav-profile-badge';
+  badge.innerHTML = `<span class="nav-profile-name">${email}</span><button class="nav-switch-btn" onclick="logout()">Logout</button>`;
+
+  const navSpacer = document.querySelector('.nav-spacer');
+  if (navSpacer && !navSpacer.nextElementSibling?.classList.contains('nav-profile-badge')) {
+    navSpacer.parentNode.insertBefore(badge, navSpacer.nextElementSibling);
+  }
+}
+
+async function logout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch {}
+  location.reload();
+}
+
+async function initializeAuth() {
+  const isAuthenticated = await checkAuthentication();
+
+  if (!isAuthenticated) {
+    // Show auth modal and hide main content
+    document.getElementById('auth-modal').classList.remove('hidden');
+    document.querySelector('.navbar').style.display = 'none';
+    document.querySelector('.main').style.display = 'none';
+  } else {
+    // User is logged in, show the app
+    document.getElementById('auth-modal').classList.add('hidden');
+    document.querySelector('.navbar').style.display = '';
+    document.querySelector('.main').style.display = '';
+    init();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // BOOT
 // ══════════════════════════════════════════════════════════════════════════════
-init();
+initializeAuth();
 </script>
 </body>
 </html>
