@@ -142,6 +142,36 @@ def init_db():
                 sort_order    INTEGER DEFAULT 0,
                 FOREIGN KEY (experience_id) REFERENCES profile_experience(id) ON DELETE CASCADE
             );
+
+            -- ── USERS (Authentication) ────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                email         TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ── API USAGE TRACKING ────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id       INTEGER NOT NULL,
+                endpoint      TEXT NOT NULL,
+                tokens_used   INTEGER,
+                api_call_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+
+            -- ── USER SETTINGS ─────────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id           INTEGER UNIQUE NOT NULL,
+                usage_month       TEXT,
+                usage_count       INTEGER DEFAULT 0,
+                created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
         """)
 
         # Schema migrations — safe to run every time on existing DBs
@@ -151,6 +181,7 @@ def init_db():
         _safe_add_column(conn, "profile_education",  "profile_id", "INTEGER NOT NULL DEFAULT 1")
         _safe_add_column(conn, "applications",       "profile_id", "INTEGER NOT NULL DEFAULT 1")
         _safe_add_column(conn, "applications",       "status_history", "TEXT DEFAULT '[]'")
+        _safe_add_column(conn, "profiles",           "user_id", "INTEGER")
 
         # Create default profile from existing settings if none exist yet
         count = conn.execute("SELECT COUNT(*) as c FROM profiles").fetchone()["c"]
@@ -709,3 +740,90 @@ def get_stats(profile_id):
             "total_applications": total_apps,
             "application_statuses": {r["status"]: r["c"] for r in status_counts},
         }
+
+
+# ── USERS (Authentication) ────────────────────────────────────────────────────────
+
+def create_user(email, password_hash):
+    """Create a new user with hashed password."""
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+            (email, password_hash)
+        )
+        return cur.lastrowid
+
+
+def get_user_by_email(email):
+    """Get user by email address."""
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_user_by_id(user_id):
+    """Get user by ID."""
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def create_user_settings(user_id):
+    """Initialize user settings after account creation."""
+    from datetime import datetime
+    with get_db() as conn:
+        current_month = datetime.now().strftime("%Y-%m")
+        conn.execute(
+            "INSERT INTO user_settings (user_id, usage_month, usage_count) VALUES (?, ?, ?)",
+            (user_id, current_month, 0)
+        )
+
+
+def get_user_settings(user_id):
+    """Get user settings."""
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM user_settings WHERE user_id=?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def add_api_usage(user_id, endpoint, tokens_used=None):
+    """Record an API call for usage tracking."""
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO api_usage (user_id, endpoint, tokens_used) VALUES (?, ?, ?)",
+            (user_id, endpoint, tokens_used)
+        )
+        # Update usage count for current month
+        from datetime import datetime
+        current_month = datetime.now().strftime("%Y-%m")
+
+        # Get current count
+        result = conn.execute(
+            "SELECT COUNT(*) as c FROM api_usage WHERE user_id=? AND strftime('%Y-%m', api_call_date)=?",
+            (user_id, current_month)
+        ).fetchone()
+
+        count = result["c"] if result else 0
+
+        # Update user_settings
+        conn.execute(
+            "UPDATE user_settings SET usage_month=?, usage_count=? WHERE user_id=?",
+            (current_month, count, user_id)
+        )
+
+
+def get_api_usage_count(user_id, month):
+    """Get API usage count for a specific month (format: YYYY-MM)."""
+    with get_db() as conn:
+        result = conn.execute(
+            "SELECT COUNT(*) as c FROM api_usage WHERE user_id=? AND strftime('%Y-%m', api_call_date)=?",
+            (user_id, month)
+        ).fetchone()
+        return result["c"] if result else 0
+
+
+def get_user_profiles(user_id):
+    """Get all profiles for a user."""
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM profiles WHERE user_id=? ORDER BY created_at", (user_id,)).fetchall()
+        return [dict(r) for r in rows]

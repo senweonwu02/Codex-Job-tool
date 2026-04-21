@@ -12,17 +12,36 @@ import re
 import urllib.request
 import urllib.error
 from html.parser import HTMLParser
+from datetime import datetime
+from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_from_directory, make_response
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 
 import base64
 import database as db
 import generator as gen
 import document_parser as dp
+import auth
 
 app = Flask(__name__, template_folder="templates")
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "api_login"
+
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = db.get_user_by_id(int(user_id))
+    return auth.User(user_data['id'], user_data['email']) if user_data else None
 
 db.init_db()
+
+# Get API key from environment
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+if not ANTHROPIC_API_KEY:
+    print("[WARNING] ANTHROPIC_API_KEY environment variable not set. API features will not work on Render.")
 
 # Serve mockup files for preview
 @app.route("/mockups/<path:filename>")
@@ -82,6 +101,104 @@ def _call_claude_messages(system: str, messages: list, api_key: str, max_tokens:
         messages=messages,
     )
     return msg.content[0].text
+
+
+# ── AUTHENTICATION ────────────────────────────────────────────────────────────
+
+@app.route("/api/auth/register", methods=["POST"])
+def api_register():
+    """Register a new user account."""
+    data = request.get_json()
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    try:
+        user_info = auth.register_user(email, password)
+        return jsonify({"message": "Account created", "user": user_info}), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def api_login():
+    """Login with email and password."""
+    data = request.get_json()
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+
+    try:
+        user_info = auth.verify_user(email, password)
+        user = auth.User(user_info['user_id'], user_info['email'])
+        login_user(user)
+        return jsonify({"message": "Logged in", "user": user_info}), 200
+    except ValueError:
+        return jsonify({"error": "Invalid email or password"}), 401
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+@login_required
+def api_logout():
+    """Logout current user."""
+    logout_user()
+    return jsonify({"message": "Logged out"}), 200
+
+
+@app.route("/api/auth/verify", methods=["GET"])
+def api_verify():
+    """Check if user is authenticated."""
+    if current_user.is_authenticated:
+        return jsonify({
+            "authenticated": True,
+            "user": {
+                "id": current_user.id,
+                "email": current_user.email
+            }
+        }), 200
+    return jsonify({"authenticated": False}), 200
+
+
+@app.route("/api/auth/usage", methods=["GET"])
+@login_required
+def api_usage():
+    """Get current month API usage for authenticated user."""
+    usage_info = auth.get_usage_info(current_user.id)
+    return jsonify(usage_info), 200
+
+
+# ── USAGE LIMITING DECORATOR ──────────────────────────────────────────────────
+
+def check_api_quota(f):
+    """Check if user has exceeded API quota before executing endpoint."""
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        current_month = datetime.now().strftime("%Y-%m")
+        count = db.get_api_usage_count(current_user.id, current_month)
+
+        if count >= 25:
+            return jsonify({
+                "error": "Monthly API limit (25) exceeded",
+                "usage": auth.get_usage_info(current_user.id)
+            }), 429
+
+        # Execute the endpoint
+        result = f(*args, **kwargs)
+
+        # Record the API usage
+        auth.record_api_usage(current_user.id, request.path)
+
+        return result
+    return decorated_function
+
 
 # ── PROFILES ──────────────────────────────────────────────────────────────────
 
